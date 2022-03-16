@@ -4,6 +4,7 @@ import "package:simple_permissions/simple_permissions.dart" show Permission, Per
 import 'package:intl/intl.dart';
 import 'dart:io';
 import 'package:path/path.dart' as path;
+import 'package:audioplayers/audioplayers.dart';
 
 void main() {
   runApp(const MyApp());
@@ -39,11 +40,14 @@ class _MyHomePageState extends State<MyHomePage> {
   final fileClass = <String> ['70', '75', '80', '85', '90', '95', '100'];
   DateTime currentPhoneDate = DateTime.now();
   bool _isRecording = false;
+  bool _isPlaying = false;
 
 
   String ? currentFilePath;
   String ? statusText;
   final _audioRecorder  = Record();
+
+  AudioPlayer audioPlayer = AudioPlayer();
 
   @override
   void initState() {
@@ -62,6 +66,7 @@ class _MyHomePageState extends State<MyHomePage> {
           bool isRecording = await _audioRecorder.isRecording();
           setState(() {
             _isRecording = isRecording;
+            _isPlaying = false;
             statusText = 'Listening ...';
           });
         }
@@ -79,6 +84,7 @@ class _MyHomePageState extends State<MyHomePage> {
       // await _audioRecorder.stop();
       setState(() {
         _isRecording = false;
+        _isPlaying = false;
         statusText = "Stop recording waiting for saving the record";
         });
     }
@@ -106,10 +112,14 @@ class _MyHomePageState extends State<MyHomePage> {
       setState(() {
         String newFilename = formatted + "__" + buttonClass + ".m4a";
         String newPath = path.join(dir, newFilename);
-        recordFile.renameSync(newPath);
         currentFilePath = newPath;
+        recordFile.renameSync(newPath);
         statusText = "Saved file at $currentFilePath";
-        });
+      });
+
+      var _isExist = File(currentFilePath!).existsSync();
+      print(_isExist);
+
     } catch (e) {
       setState(() {
         statusText = "Cannot saved file : $currentFilePath with error: $e";
@@ -128,6 +138,41 @@ class _MyHomePageState extends State<MyHomePage> {
     } catch (e) {
       setState(() {
         statusText = "Cannot remove file : $currentFilePath with this error: $e";
+      });
+    }
+  }
+
+  Future<void> startPlayingAudio () async {
+    try {
+      int result = await audioPlayer.play(currentFilePath!, isLocal:true);
+      setState(() {
+        statusText = "playing audio file : $currentFilePath with status $result";
+        _isPlaying = true;
+      });
+
+      var _isExist = File(currentFilePath!).existsSync();
+      print('playing');
+      print(_isExist);
+      
+    } catch (e) {
+      setState(() {
+        statusText = "Cannot play audio file : $currentFilePath with this error: $e";
+        _isPlaying = false;
+      });
+    }
+  }
+
+  Future<void> stopPlayingAudio() async {
+    try {
+      int result = await audioPlayer.stop();
+      setState(() {
+        statusText = "stop audio file : $currentFilePath with status $result";
+        _isPlaying = false;
+      });
+    } catch (e) {
+      setState(() {
+        statusText = "Cannot stop playing audio file : $currentFilePath with this error: $e";
+        // _isPlaying = false;
       });
     }
   }
@@ -169,6 +214,17 @@ class _MyHomePageState extends State<MyHomePage> {
                   }
                 });
               },
+            ),
+            FlatButton(
+              child: Text(_isPlaying ? "Stop" : "Play"),
+              onPressed: () {
+                if (_isPlaying) {
+                  stopPlayingAudio();
+                } else {
+                  startPlayingAudio();
+                }
+              },
+              color: Colors.lightBlue,
             ),
             Row(
               children: [
@@ -228,6 +284,7 @@ class _MyHomePageState extends State<MyHomePage> {
               },
               color: Colors.brown,
             ),
+
             Text(statusText ?? ""),
           ],
         ),
